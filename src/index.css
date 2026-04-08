@@ -7,7 +7,47 @@
 @layer base {
   body {
     @apply bg-background text-slate-900 antialiased;
+    font-family: 'Inter', sans-serif;
   }
+  h1, h2, h3, h4, th {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+/* Custom Toggle Switch */
+.tog {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+}
+.tog input {
+  display: none;
+}
+.sld {
+  position: absolute;
+  inset: 0;
+  background: #cbd5e1;
+  border-radius: 24px;
+  transition: .3s;
+}
+.sld:before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: .3s;
+}
+.tog input:checked + .sld {
+  background: #1e40af;
+}
+.tog input:checked + .sld:before {
+  transform: translateX(20px);
 }
 
 /* Custom Scrollbar for a premium feel */

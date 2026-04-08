@@ -1,493 +1,481 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
-// ---- MOCK DATA ----
-const initialData = [
-  { id: 1, element: 'A network-connected thermostat comprising a temperature sensor...', feature: "Exhibit A, Page 12: 'The Nest Learning Thermostat includes an integrated Wi-Fi chip and 1% precision sensors...'", reasoning: "Strong match. The base unit acts as the primary control center.", weak: false },
-  { id: 2, element: 'A remote server configured to receive and analyze temperature profiles...', feature: "AWS IoT Core metrics documenting daily syncing of local temperature readings.", reasoning: "Clear equivalence. The TS 2.0 module actively monitors ambient temp.", weak: false },
-  { id: 3, element: 'A predictive algorithm that preemptively adjusts HVAC schedules...', feature: "Section 4.1 'Smart Schedule' patent description detailing predictive pre-cooling.", reasoning: "Needs further review. It transmits data, but unclear if it routes to a 'remote server' or local hub.", weak: true },
+// ---- CONSTANTS ----
+const CLAIMS = [
+  { id: 'CLM-001', patent: 'US123456', element: 'Wireless module', status: 'ACTIVE', conf: 92, updated: '2 hours ago' },
+  { id: 'CLM-002', patent: 'US123456', element: 'Motion sensor', status: 'ACTIVE', conf: 88, updated: '2 hours ago' },
+  { id: 'CLM-003', patent: 'US123456', element: 'ML Algorithm', status: 'NEEDS_REVIEW', conf: 45, updated: '3 hours ago' },
+  { id: 'CLM-004', patent: 'US789012', element: 'Temperature sensor', status: 'IN_REVIEW', conf: 78, updated: 'Yesterday' },
+  { id: 'CLM-005', patent: 'US345678', element: 'Data processor', status: 'DRAFT', conf: 20, updated: '3 days ago' }
 ];
 
-const mockExports = [
-  { id: 1, name: 'Claim Chart - Thermostat v4', case: '#8821-APP • Patent Analysis', status: 'COMPLETED' },
-  { id: 2, name: 'Deposition Summary - Wright v. Corp', case: '#9012-LIT • Litigation Support', status: 'PROCESSING' },
-  { id: 3, name: 'Prior Art Review - Microfluidics Alpha', case: '#7745-PAT • R&D Discovery', status: 'COMPLETED' },
-  { id: 4, name: 'Contract Addendum - Section 4B', case: '#1102-CTR • Compliance', status: 'FAILED' },
+const TEAM = [
+  { n: 'Elena Vance', e: 'elena.vance@lumenci.com', r: 'Admin', s: 'Active', j: 'Jan 12, 2024', i: 'EV', c: '#1e40af' },
+  { n: 'Marcus Thorne', e: 'm.thorne@lumenci.com', r: 'Analyst', s: 'Active', j: 'Feb 05, 2024', i: 'MT', c: '#047857' },
+  { n: 'Sarah Chen', e: 's.chen@lumenci.com', r: 'Reviewer', s: 'Pending', j: 'Mar 18, 2024', i: 'SC', c: '#7c3aed' },
+  { n: 'David Miller', e: 'd.miller@lumenci.com', r: 'Analyst', s: 'Active', j: 'Apr 02, 2024', i: 'DM', c: '#b45309' }
 ];
 
-// ---- ICONS ----
-const Icons = {
-  Grid: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/></svg>,
-  Brain: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>,
-  FormatList: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>,
-  Archive: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21H4V10h2v9h12v-9h2v11zM3 3h18v6H3V3zm2 2v2h14V5H5zm8 4h-2v3H8l4 4 4-4h-3V9z"/></svg>,
-  UploadFile: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>,
-  CloudUpload: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.61 5.64 5.36 8.04 2.34 8.36 0 10.9 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>,
-  Settings: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.49-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>,
-  Export: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>,
-  Menu: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>,
-  Search: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>,
-  Gavel: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h12v2H1zM5.24 8.07l2.83-2.83 14.14 14.14-2.83 2.83L5.24 8.07zM12.32 1l5.66 5.66-2.83 2.83-5.66-5.66L12.32 1zM3.83 9.48l5.66 5.66-2.83 2.83-5.66-5.66 2.83-2.83z"/></svg>
+const INTS = [
+  { name: 'Microsoft Word', desc: 'Draft legal briefs with AI citation.', status: 'CONNECTED', sync: '2m ago' },
+  { name: 'Google Drive', desc: 'Auto-index PDFs to case folders.', status: 'CONNECTED', sync: '1h ago' },
+  { name: 'Slack', desc: 'Instant case notifications.', status: 'CONNECT' },
+  { name: 'Westlaw', desc: 'Premium legal research.', status: 'CONNECTED', sync: 'Active' },
+  { name: 'LexisNexis', desc: 'Citations and litigation analytics.', status: 'CONNECT' }
+];
+
+const DEMO_CONVERSATIONS = [
+  { id: 1, category: "Strengthen Evidence", userMessage: "The AI reasoning for the ML algorithm element is weak - add more technical details", aiResponse: "I have analyzed Element 3. The current reasoning lacks technical depth. Here is a stronger version referencing specific ML architecture terminology.", update: { elementId: 3, field: "aiReasoning", newValue: "Acme Auto-Schedule feature demonstrates supervised machine learning behavior consistent with a neural network or decision tree model trained on temporal user interaction data. The system adapts setpoint temperatures based on historical patterns, satisfying the claim requirement for an algorithm that learns preferences over time. Technical patent literature confirms this maps directly to claim element 3." } },
+  { id: 2, category: "Strengthen Evidence", userMessage: "Strengthen the evidence for the wireless communication module", aiResponse: "The current evidence for Element 1 is adequate but can be technically reinforced. Here is an improved version.", update: { elementId: 1, field: "evidence", newValue: "Acme Thermostat FCC filing ID: 2ABCD-THERMO1 confirms 802.11 b/g/n WiFi radio module operating at 2.4GHz. Product teardown by iFixit (Oct 2023) identified Broadcom BCM43362 wireless chip. This satisfies the wireless communication module claim element." } },
+  { id: 3, category: "Strengthen Evidence", userMessage: "Add technical documentation for the motion sensor claim", aiResponse: "I found stronger technical evidence for the motion sensor element. Here is the updated evidence.", update: { elementId: 2, field: "evidence", newValue: "Acme Engineering Datasheet v2.1 page 14 specifies: Passive Infrared sensor PIR model SR501 with 120 degree detection angle and 7 meter range. Firmware changelog v3.2.1 confirms occupancy detection algorithm using PIR interrupt signals mapped directly to HVAC scheduling logic." } },
+  { id: 4, category: "Strengthen Evidence", userMessage: "The evidence for element 2 is from marketing only, need technical proof", aiResponse: "You are correct. Marketing materials alone are weak evidence. Here is technical documentation evidence instead.", update: { elementId: 2, field: "evidence", newValue: "Acme SmartHome SDK documentation section 4.3 states: OccupancyDetector class uses hardware interrupt from PIR sensor pin GPIO17 to trigger presence detection events. This is direct technical evidence of the motion sensor for occupancy detection as claimed." } },
+  { id: 5, category: "Strengthen Evidence", userMessage: "Can you find better evidence from a technical specification document", aiResponse: "Based on typical product documentation patterns, here is what stronger technical spec evidence would look like for this claim chart.", update: { elementId: 3, field: "evidence", newValue: "Acme firmware source code repository (GitHub acmecorp/thermostat commit a3f91b2) contains TempPreferenceLearning Module with gradient descent optimizer updating weights every 24 hours based on manual override events. This is direct source code evidence of the ML algorithm learning user preferences." } },
+  { id: 6, category: "Fix Reasoning", userMessage: "The AI reasoning for element 3 is vague, need more specific analysis", aiResponse: "Agreed. The current reasoning is too general. Here is specific technical analysis for the ML algorithm element.", update: { elementId: 3, field: "aiReasoning", newValue: "The Auto-Schedule feature constitutes a machine learning algorithm under the doctrine of equivalents. Specifically, the adaptive temperature scheduling performs function (learn preferences), way (analyzing historical setpoint adjustments), result (predicting future preferred temperatures) identical to the claimed ML algorithm. Federal Circuit precedent in Graver Tank supports this mapping." } },
+  { id: 7, category: "Fix Reasoning", userMessage: "Rewrite the reasoning to address potential claim construction arguments from the defense", aiResponse: "Here is a legally robust version of the reasoning that anticipates and addresses common defense arguments.", update: { elementId: 3, field: "aiReasoning", newValue: "Even under the narrowest claim construction of machine learning algorithm, the Acme Auto-Schedule satisfies this limitation. Defense argument that marketing language is insufficient is pre-empted by firmware v3.2 release notes which explicitly reference a trained model with configurable learning rate parameter. This constitutes direct infringement under 35 USC 271(a)." } },
+  { id: 8, category: "Fix Reasoning", userMessage: "The reasoning for element 1 does not mention the specific WiFi standard", aiResponse: "Good catch. Here is updated reasoning that includes the specific wireless standard details.", update: { elementId: 1, field: "aiReasoning", newValue: "The Acme Thermostat implements IEEE 802.11 WiFi protocol which falls squarely within the claim scope of wireless communication module. The claimed invention does not limit the wireless standard, therefore 802.11 WiFi satisfies this limitation both literally and under doctrine of equivalents. FCC certification confirms RF transmission capability." } },
+  { id: 9, category: "Fix Reasoning", userMessage: "Make the reasoning more formal for use in legal proceedings", aiResponse: "Here is a formally structured legal reasoning suitable for court submission documents.", update: { elementId: 2, field: "aiReasoning", newValue: "The accused product literally infringes the motion sensor claim limitation. Claim element requires: (1) a motion sensor and (2) for detecting occupancy. The Acme technical datasheet confirms presence of PIR sensor satisfying element (1). The firmware OccupancyDetector class satisfies element (2). Both limitations are met literally. No claim construction dispute anticipated." } },
+  { id: 10, category: "Fix Reasoning", userMessage: "The reasoning does not cite any legal standards or precedents", aiResponse: "Here is updated reasoning with proper legal citation framework.", update: { elementId: 1, field: "aiReasoning", newValue: "Under the Phillips v AWH claim construction standard, wireless communication module is construed in light of the specification to include any radio frequency communication system. The Acme WiFi module satisfies this construction. See also parties agreed claim construction in pretrial order defining wireless as including IEEE 802.11 protocols." } },
+  { id: 11, category: "Add Missing Features", userMessage: "AI missed that Acme also has a temperature sensor array", aiResponse: "You are correct. This is an important missing feature. I will add a new claim element for the temperature sensor array.", update: { elementId: 1, field: "evidence", newValue: "Acme product page confirms primary temperature sensor plus secondary ambient sensor array with 3 distributed measurement points. Datasheet shows NTC thermistor array model TMP36 at locations: main unit, remote sensor 1, remote sensor 2. This exceeds the single temperature control device claimed in the patent." } },
+  { id: 12, category: "Add Missing Features", userMessage: "What features am I missing in the accused product analysis", aiResponse: "Based on my analysis of the current claim chart I have identified 3 potentially missing features that should be mapped to claim elements: 1. Remote access via mobile app 2. Energy usage reporting dashboard 3. Integration with smart home platforms like Amazon Alexa and Google Home. Would you like me to add evidence for any of these?" },
+  { id: 13, category: "Add Missing Features", userMessage: "Add the geofencing feature to the claim chart", aiResponse: "Geofencing is an important feature. Here is the evidence mapping for geofencing capability.", update: { elementId: 1, field: "evidence", newValue: "Acme app v4.2 release notes confirm geofencing feature using device GPS coordinates to trigger temperature adjustments when user is within 1 mile of home. This extends the wireless communication module claim to include location-aware remote control functionality." } },
+  { id: 14, category: "Add Missing Features", userMessage: "The voice control feature is not mapped in the chart", aiResponse: "Voice control is a relevant feature for the wireless communication module claim. Here is the evidence.", update: { elementId: 1, field: "evidence", newValue: "Acme Thermostat supports Amazon Alexa and Google Assistant voice commands via WiFi. User manual page 23 confirms: Set temperature using voice command through your smart speaker. This is additional evidence of the wireless communication module operating as claimed." } },
+  { id: 15, category: "Add Missing Features", userMessage: "Include the over the air update feature as evidence", aiResponse: "OTA updates are strong additional evidence for the wireless communication module. Here is the updated evidence.", update: { elementId: 1, field: "evidence", newValue: "Acme support documentation confirms automatic firmware updates delivered over WiFi connection. Version history shows 12 OTA updates since product launch. This demonstrates bidirectional wireless communication capability beyond what is claimed, strengthening the infringement analysis." } },
+  { id: 16, category: "Legal Language", userMessage: "Rewrite element 3 reasoning using doctrine of equivalents", aiResponse: "Here is the reasoning rewritten using doctrine of equivalents legal framework.", update: { elementId: 3, field: "aiReasoning", newValue: "Under the doctrine of equivalents per Hilton Davis Chemical Co v Warner Jenkinson, the Acme Auto-Schedule performs substantially the same function (learning temperature preferences) in substantially the same way (analyzing historical user inputs) to achieve substantially the same result (automated temperature optimization) as the claimed ML algorithm. Infringement established under DOE." } },
+  { id: 17, category: "Legal Language", userMessage: "Add prosecution history estoppel analysis to element 1", aiResponse: "Here is prosecution history estoppel analysis for the wireless communication module claim.", update: { elementId: 1, field: "aiReasoning", newValue: "Review of prosecution history for patent US123456 shows no amendments were made to the wireless communication module limitation during examination. Therefore no prosecution history estoppel applies and the full range of equivalents is available. The Acme WiFi module falls within both literal scope and equivalents of this claim." } },
+  { id: 18, category: "Legal Language", userMessage: "Does the accused product literally infringe all claim elements", aiResponse: "Based on current evidence in the chart, here is my literal infringement analysis for all 3 elements: Element 1 (Wireless Module): YES - literal infringement confirmed by FCC filing and product specs. Element 2 (Motion Sensor): YES - literal infringement confirmed by technical datasheet. Element 3 (ML Algorithm): PARTIAL - marketing evidence suggests literal infringement but technical documentation needed to confirm. Recommend obtaining firmware source code or technical specs." },
+  { id: 19, category: "Legal Language", userMessage: "Write a claim construction argument for machine learning algorithm", aiResponse: "Here is a claim construction argument for the ML algorithm element.", update: { elementId: 3, field: "aiReasoning", newValue: "Claim construction: Machine learning algorithm should be construed broadly per Phillips standard to include any computational system that improves performance based on experience or training data. The specification supports this broad construction at col 4 lines 12-28. Under this construction, the Acme Auto-Schedule which adapts based on historical user interactions satisfies the limitation literally." } },
+  { id: 20, category: "Legal Language", userMessage: "Add invalidity risk assessment to the reasoning", aiResponse: "Here is an invalidity risk assessment added to element 3 reasoning.", update: { elementId: 3, field: "aiReasoning", newValue: "Infringement analysis: Auto-Schedule maps to ML algorithm claim. Invalidity risk assessment: MEDIUM. Potential prior art includes Nest Learning Thermostat patent US8620841 (2012) and Ecobee SmartThermostat US9696733 (2014). Recommend prior art search focused on adaptive HVAC scheduling before proceeding with litigation. Current evidence supports infringement but invalidity defense is anticipated." } }
+];
+
+const DEMO_CATEGORIES = [...new Set(DEMO_CONVERSATIONS.map(d => d.category))];
+const GEMINI_KEY = "";
+const OPENAI_KEY = "";
+
+// ---- UI PRIMITIVES ----
+const Tog = ({ on, set }) => (
+  <label className="tog">
+    <input type="checkbox" checked={on} onChange={e => set(e.target.checked)} />
+    <span className="sld"></span>
+  </label>
+);
+
+const Badge = ({ s }) => {
+  const m = {
+    ACTIVE: 'bg-blue-50 text-blue-700',
+    NEEDS_REVIEW: 'bg-orange-100 text-orange-700',
+    IN_REVIEW: 'bg-purple-100 text-purple-700',
+    DRAFT: 'bg-gray-100 text-gray-600',
+    PAID: 'bg-blue-50 text-blue-700',
+    CONNECTED: 'bg-green-100 text-green-700',
+    CONNECT: 'bg-gray-100 text-gray-700',
+    Active: 'bg-green-50 text-green-700',
+    Pending: 'bg-orange-50 text-orange-700',
+    READY: 'bg-green-100 text-green-700',
+    PROCESSING: 'bg-blue-50 text-blue-700'
+  };
+  const l = {
+    NEEDS_REVIEW: 'NEEDS REVIEW',
+    IN_REVIEW: 'IN REVIEW'
+  };
+  return (
+    <span className={"text-[10px] font-bold px-2.5 py-1 rounded " + (m[s] || 'bg-gray-100 text-gray-700')}>
+      {l[s] || s}
+    </span>
+  );
 };
 
-// ---- MAIN COMPONENTS ----
-
-const Sidebar = ({ currentView, setView }) => {
-  const tabs = [
-    { id: 'workspace', icon: Icons.Grid, label: 'Workspace' },
-    { id: 'intelligence', icon: Icons.Brain, label: 'Intelligence' },
-    { id: 'claims', icon: Icons.FormatList, label: 'Claims' },
-    { id: 'archive', icon: Icons.Archive, label: 'Archive' }
-  ];
-
+const CB = ({ v }) => {
+  const b = v >= 80 ? '#22c55e' : v >= 50 ? '#f97316' : '#ef4444';
+  const t = v >= 80 ? 'text-green-600' : v >= 50 ? 'text-orange-500' : 'text-red-500';
   return (
-    <div className="w-20 md:w-24 bg-sidebar-bg flex flex-col items-center py-6 h-screen shrink-0 text-white shadow-2xl z-20 sticky top-0 border-r border-sidebar-hover">
-      <div className="mb-8 font-extrabold text-[10px] md:text-sm tracking-widest uppercase">LUMENCI</div>
-      
-      <div className="flex flex-col gap-6 w-full mt-4 flex-1">
-        {tabs.map((tab) => (
-          <button 
-            key={tab.id}
-            onClick={() => setView(tab.id === 'workspace' ? 'initialize' : tab.id === 'intelligence' ? 'analysis' : tab.id === 'archive' ? 'export_history' : tab.id)}
-            className={`flex flex-col items-center justify-center w-full py-4 gap-2 transition-all relative ${
-              (currentView === 'initialize' && tab.id === 'workspace') || 
-              (currentView === 'analysis' && tab.id === 'intelligence') ||
-              (currentView === 'export_history' && tab.id === 'archive')
-                ? 'bg-sidebar-active text-white shadow-inner before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-white' 
-                : 'text-slate-400 hover:text-white hover:bg-sidebar-hover'
-            }`}
-          >
-            <tab.icon />
-            <span className="text-[9px] md:text-[11px] font-bold tracking-wider uppercase">{tab.label}</span>
-          </button>
-        ))}
+    <div className="flex items-center gap-2">
+      <span className={"text-sm font-bold " + t}>{v}%</span>
+      <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: v + "%", background: b }}></div>
       </div>
+    </div>
+  );
+};
 
-      <div className="mt-auto flex flex-col items-center gap-6 w-full">
-        <button className="text-slate-400 hover:text-white p-2">
-          <Icons.Settings />
+const SI = ({ id, label, icon, view, setView }) => (
+  <button onClick={() => setView(id)} className={"flex items-center gap-3 px-3 py-2 rounded-lg text-sm w-full text-left " + (view === id ? "text-blue-700 font-semibold bg-blue-50" : "text-slate-600 hover:bg-gray-100")}>
+    <span>{icon}</span>{label}
+  </button>
+);
+
+// ---- LAYOUT COMPONENTS ----
+const TopNav = ({ view, setView }) => {
+  const nb = a => "px-4 py-2 text-sm font-semibold rounded-md " + (a ? "text-blue-700 bg-blue-50" : "text-slate-600 hover:bg-gray-100");
+  return (
+    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-50 shrink-0">
+      <div className="flex items-center gap-8">
+        <button onClick={() => setView('allClaims')} className="flex items-center gap-2 font-bold focus:outline-none">
+          <div className="w-7 h-7 bg-blue-800 rounded-lg flex items-center justify-center text-white text-xs font-black">L</div>
+          Lumenci Assistant
         </button>
-        <div className="w-10 h-10 rounded-full border-2 border-slate-600 overflow-hidden cursor-pointer hover:border-slate-400 transition-colors">
-          <img src="https://i.pravatar.cc/100?img=11" alt="User Avatar" className="w-full h-full object-cover"/>
+        <nav className="flex gap-1">
+          <button onClick={() => setView('allClaims')} className={nb(['allClaims', 'claimDetail', 'analysis'].includes(view))}>Claims</button>
+          <button onClick={() => setView('usage')} className={nb(view === 'usage')}>Reports</button>
+        </nav>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 bg-gray-100 rounded-full px-4 py-2 w-44 text-sm text-slate-400">🔍 Search...</div>
+        <button className="w-9 h-9 flex items-center justify-center text-slate-500 hover:bg-gray-100 rounded-full">🔔</button>
+        <button onClick={() => setView('settings')} className="w-9 h-9 flex items-center justify-center text-slate-500 hover:bg-gray-100 rounded-full">⚙️</button>
+        <button onClick={() => setView('profile')} className="w-9 h-9 rounded-full bg-blue-800 text-white font-bold text-sm flex items-center justify-center">AS</button>
+      </div>
+    </header>
+  );
+};
+
+const ClaimsSidebar = ({ view, setView }) => (
+  <aside className="w-52 bg-white border-r border-gray-200 flex flex-col shrink-0">
+    <div className="p-4 flex-1">
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">My Workspace</p>
+      <div className="space-y-0.5">
+        <SI id="allClaims" label="All Claims" icon="📋" view={view} setView={setView} />
+      </div>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-5 mb-2">Projects</p>
+      <div className="space-y-0.5">
+        <div className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0"></span>Patent Portfolio A
         </div>
+        <div className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>Mobile Tech Audit
+        </div>
+      </div>
+    </div>
+    <div className="p-4 border-t border-gray-100">
+      <button onClick={() => setView('allClaims')} className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-700 text-white rounded-xl text-sm font-bold mb-2 hover:bg-blue-800">
+        + New Claim
+      </button>
+      <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:bg-gray-100 rounded-lg w-full">❓ Help</button>
+    </div>
+  </aside>
+);
+
+const WorkspaceSidebar = ({ view, setView }) => (
+  <aside className="w-52 bg-white border-r border-gray-200 flex flex-col shrink-0">
+    <div className="p-4 flex-1">
+      <p className="font-bold text-blue-700">Lumenci</p>
+      <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-4">Premium Legal Intel</p>
+      <div className="space-y-0.5">
+        <SI id="workspace" label="Workspace" icon="🏠" view={view} setView={setView} />
+        <SI id="activeProjects" label="Active Projects" icon="📁" view={view} setView={setView} />
+        <SI id="caseFiles" label="Case Files" icon="📄" view={view} setView={setView} />
+        <SI id="archive" label="Archive" icon="📦" view={view} setView={setView} />
+        <SI id="team" label="Team" icon="👥" view={view} setView={setView} />
+      </div>
+    </div>
+  </aside>
+);
+
+const SettingsSidebar = ({ view, setView }) => {
+  const items = [
+    ['settings', 'Account', '👤'],
+    ['notifications', 'Notifications', '🔔'],
+    ['integrations', 'Integrations', '🔗'],
+    ['preferences', 'AI Preferences', '🤖'],
+    ['exportSettings', 'Export', '📤'],
+    ['team', 'Team', '👥'],
+    ['security', 'Security', '🛡️'],
+    ['billing', 'Billing', '💳'],
+    ['usage', 'Usage & Analytics', '📊']
+  ];
+  return (
+    <aside className="w-52 bg-white border-r border-gray-200 shrink-0 p-4">
+      <p className="text-sm font-bold text-slate-700 mb-1">Settings</p>
+      <p className="text-xs text-slate-400 mb-4">Manage workspace</p>
+      {items.map(([id, label, icon]) => (
+        <SI key={id} id={id} label={label} icon={icon} view={view} setView={setView} />
+      ))}
+    </aside>
+  );
+};
+
+// ---- VIEWS ----
+const AllClaims = ({ sv }) => {
+  const [q, setQ] = useState('');
+  const rows = CLAIMS.filter(c => c.element.toLowerCase().includes(q.toLowerCase()) || c.id.includes(q));
+  return (
+    <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">All Claims</h1>
+          <p className="text-slate-500 text-sm mt-1">24 total claims across all projects</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5 w-52">
+            <input value={q} onChange={e => setQ(e.target.value)} className="border-none outline-none text-sm flex-1 bg-transparent" placeholder="Search claims..." />
+          </div>
+          <button className="border bg-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50">Filter</button>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-5">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-100">
+              {['CLAIM ID', 'PATENT', 'ELEMENT', 'STATUS', 'CONFIDENCE', 'UPDATED', 'ACTIONS'].map(h => (
+                <th key={h} className="px-5 py-3.5 text-left text-[11px] text-slate-400 font-bold uppercase tracking-widest">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((c, i) => (
+              <tr key={c.id} className={"hover:bg-gray-50 " + (i < rows.length - 1 ? "border-b border-gray-50" : "")}>
+                <td className="px-5 py-4"><button onClick={() => sv('claimDetail')} className="text-blue-700 font-bold text-sm hover:underline">{c.id}</button></td>
+                <td className="px-4 py-4 text-sm font-medium">{c.patent}</td>
+                <td className="px-4 py-4 text-sm">{c.element}</td>
+                <td className="px-4 py-4"><Badge s={c.status} /></td>
+                <td className="px-4 py-4"><CB v={c.conf} /></td>
+                <td className="px-4 py-4 text-sm text-slate-500">{c.updated}</td>
+                <td className="px-4 py-4">
+                  <button onClick={() => sv('claimDetail')} className="mr-2 text-slate-400 hover:text-blue-600">👁</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 };
 
-const Header = ({ title }) => (
-  <div className="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
-    <div className="flex items-center gap-3">
-      <Icons.Gavel className="text-primary-DEFAULT" />
-      <h1 className="text-xl font-bold text-slate-900 tracking-tight">Lumenci Assistant</h1>
+const ClaimDetail = ({ sv }) => (
+  <div className="flex-1 overflow-y-auto p-6">
+    <nav className="flex items-center gap-2 text-sm text-slate-400 mb-5">
+      <button onClick={() => sv('allClaims')} className="hover:text-blue-700">Home</button>
+      <span>›</span><span>US123456</span><span>›</span><span className="text-slate-700 font-semibold">CLM-003</span>
+    </nav>
+    <div className="flex items-start justify-between mb-5">
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <h1 className="text-3xl font-bold uppercase tracking-tight">CLM-003 – ML Algorithm</h1>
+          <Badge s="NEEDS_REVIEW" />
+        </div>
+        <CB v={45} />
+      </div>
+      <div className="flex gap-2">
+        <button className="border border-gray-300 bg-white px-4 py-2.5 rounded-xl text-sm font-semibold">Export</button>
+        <button onClick={() => sv('analysis')} className="bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold">✨ AI Refine</button>
+      </div>
     </div>
-    <button className="bg-primary-DEFAULT hover:bg-primary-hover text-white rounded-lg px-5 py-2.5 text-sm font-semibold flex items-center gap-2 shadow-sm transition-colors cursor-pointer">
-      <Icons.Export /> Export
+    <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="bg-blue-800 text-white rounded-2xl p-5">
+        <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mb-3">📋 Patent Claim</p>
+        <p className="text-sm">"Machine learning algorithm that learns user temperature preferences over time"</p>
+      </div>
+      <div className="bg-blue-700 text-white rounded-2xl p-5">
+        <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mb-3">📁 Evidence</p>
+        <p className="text-sm">"Acme marketing materials claim: Auto-Schedule learns your preferred temperatures"</p>
+      </div>
+      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5">
+        <p className="text-orange-600 text-[10px] font-bold uppercase tracking-widest mb-3">⚠ AI Reasoning</p>
+        <p className="text-sm text-orange-800">Learning behavior suggests ML algorithm, details undisclosed.</p>
+      </div>
+    </div>
+    <button onClick={() => sv('analysis')} className="w-full bg-blue-800 text-white p-6 rounded-2xl font-bold text-left hover:bg-blue-900 shadow-lg">
+      <p className="text-blue-300 text-xs mb-1 uppercase tracking-widest">Interactive Session</p>
+      <div className="text-xl flex justify-between items-center">
+        <span>Click to start AI refinement on this claim...</span>
+        <span>💬</span>
+      </div>
     </button>
   </div>
 );
 
-// VIEW 1: Initialize Analysis
-const InitializeAnalysisView = ({ onStart }) => (
-  <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-6 py-12">
-    <div className="text-center mb-10 w-full animate-fade-in">
-      <p className="text-primary-DEFAULT font-bold text-[11px] uppercase tracking-widest mb-3">Precision Intelligence</p>
-      <h2 className="text-5xl font-extrabold text-slate-900 mb-6 leading-tight">Initialize<br/>Patent<br/>Analysis</h2>
-      <p className="text-slate-600 text-[15px] max-w-md mx-auto leading-relaxed">
-        Prepare your intelligence workflow by uploading technical assets. Our engine extracts claims and product specifications with surgical precision.
-      </p>
-    </div>
+const AnalysisView = ({ sv }) => {
+  const INITIAL = [
+    { id: 1, element: 'Adaptive Feedback Loop', desc: 'Regulating temp via sensor array...', spec: 'Col. 4, Ln. 12-45', conf: 'HIGH', st: 'strong' },
+    { id: 2, element: 'Network Interface', desc: 'Mesh protocol networking...', spec: 'Col. 8, Ln. 4-15', conf: 'HIGH', st: 'strong' },
+    { id: 3, element: 'ML Processing Element', desc: 'Deep neural network logic...', spec: 'Inconclusive Search', conf: '45%', st: 'weak' }
+  ];
+  const [chartData, setChartData] = useState(INITIAL);
+  const [history, setHistory] = useState([]);
+  const [msgs, setMsgs] = useState([{ role: 'assistant', content: "Loaded US123456. Element 3 has weak evidence. Should we refine it?" }]);
+  const [inp, setInp] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+  const [demoPanelOpen, setDemoPanelOpen] = useState(false);
+  const endRef = useRef(null);
 
-    <div className="w-full space-y-6">
-      {/* Upload 1 */}
-      <div className="p-8 border-2 border-dashed border-slate-300 rounded-2xl bg-white flex flex-col items-center justify-center text-center hover:border-primary-DEFAULT hover:bg-blue-50/30 transition-colors cursor-pointer group">
-        <div className="bg-blue-100 text-primary-DEFAULT p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
-          <Icons.UploadFile />
-        </div>
-        <h3 className="font-bold text-slate-900 text-lg mb-2">Upload Claim Chart</h3>
-        <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">Import mapping structures via CSV, Word, or direct text paste.</p>
-        <div className="flex gap-2 mb-6">
-          <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full uppercase tracking-wider">CSV</span>
-          <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full uppercase tracking-wider">DOCX</span>
-          <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full uppercase tracking-wider">PASTE</span>
-        </div>
-        <span className="text-primary-DEFAULT font-bold text-sm flex items-center gap-1 group-hover:underline">Select source →</span>
-      </div>
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
 
-      {/* Upload 2 */}
-      <div className="p-8 border-2 border-dashed border-slate-300 rounded-2xl bg-white flex flex-col items-center justify-center text-center hover:border-primary-DEFAULT hover:bg-blue-50/30 transition-colors cursor-pointer group">
-        <div className="bg-purple-100 text-purple-600 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
-          <Icons.CloudUpload />
-        </div>
-        <h3 className="font-bold text-slate-900 text-lg mb-2">Upload Product Documents</h3>
-        <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">Index technical specifications, PDF whitepapers, or live product URLs.</p>
-        <div className="flex gap-2 mb-6">
-          <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full uppercase tracking-wider">PDF</span>
-          <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full uppercase tracking-wider">HTTPS://</span>
-          <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full uppercase tracking-wider">ZIP</span>
-        </div>
-        <span className="text-primary-DEFAULT font-bold text-sm flex items-center gap-1 group-hover:underline">Browse assets →</span>
-      </div>
-    </div>
+  const sendMessage = async (userMessage) => {
+    if (!userMessage.trim() || loading) return;
+    setMsgs(m => [...m, { role: 'user', content: userMessage }]);
+    setInp('');
+    setLoading(true);
 
-    <button 
-      onClick={onStart}
-      className="mt-8 bg-primary-DEFAULT hover:bg-primary-hover text-white w-full max-w-sm rounded-xl py-4 font-bold text-lg shadow-xl shadow-primary-DEFAULT/20 flex items-center justify-center gap-2 transition-all active:scale-95"
-    >
-      Start Analysis <Icons.Gavel/>
-    </button>
-  </div>
-);
-
-// VIEW 2: Claim Chart Analysis (Main Dashboard)
-const ClaimChartAnalysisView = ({ chartData }) => {
-  return (
-    <div className="h-full bg-background overflow-hidden flex flex-col p-8">
-      <div className="max-w-4xl w-full mx-auto flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-        <div className="p-8 border-b border-slate-200 bg-white shrink-0">
-          <p className="text-[11px] uppercase tracking-widest font-bold text-slate-500 mb-2">Project: Smart Thermostat V4</p>
-          <div className="flex justify-between items-center">
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Claim Chart<br/>Analysis</h2>
-            <button className="p-2 text-slate-400 hover:text-slate-800 transition-colors">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-            </button>
-          </div>
-        </div>
-        
-        {/* Table Header */}
-        <div className="grid grid-cols-2 bg-slate-50 border-b border-slate-200 shrink-0">
-          <div className="p-4 pl-8 text-[11px] font-bold uppercase tracking-widest text-slate-500">Patent Claim Element</div>
-          <div className="p-4 text-[11px] font-bold uppercase tracking-widest text-slate-500 border-l border-slate-200">Evidence</div>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto">
-          {chartData.map((row, idx) => (
-            <div key={row.id} className="grid grid-cols-2 border-b border-slate-100 last:border-b-0 hover:bg-slate-50 py-4 group">
-              <div className="pl-8 pr-6 pt-2">
-                <span className="text-primary-DEFAULT font-semibold block mb-3 text-lg">Element 1.{row.id}</span>
-                <p className="text-[15px] leading-relaxed text-slate-700 font-medium">"{row.element}"</p>
-              </div>
-              <div className="px-6 pt-2 border-l border-slate-100 relative">
-                {row.weak ? (
-                  <span className="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-[4px] text-[10px] font-bold mb-3 uppercase tracking-wider">UNRESOLVED</span>
-                ) : (
-                  <span className="inline-block bg-green-100 text-green-700 px-3 py-1 rounded-[4px] text-[10px] font-bold mb-3 uppercase tracking-wider">STRONG</span>
-                )}
-                <div className="bg-slate-50 rounded-lg p-5 border border-slate-100 mt-1">
-                  <p className="text-[14px] leading-relaxed text-slate-600 italic">"{row.feature}"</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// VIEW 3: Export History
-const ExportHistoryView = () => {
-  return (
-    <div className="h-full w-full bg-background overflow-hidden flex flex-col p-8">
-      <div className="max-w-[1000px] w-full mx-auto flex-1 flex flex-col">
-        <div className="flex items-center gap-4 mb-8 shrink-0">
-          <button className="text-slate-500 hover:text-slate-900"><Icons.Menu /></button>
-          <h2 className="text-2xl font-bold text-slate-900">Export History</h2>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-6 shrink-0">
-          <div className="flex-1 min-w-[250px]">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Search Documents</label>
-            <div className="relative">
-              <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="text" placeholder="Search by case or document name" className="w-full bg-white border border-slate-200 rounded-lg py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:border-primary-DEFAULT focus:ring-1 focus:ring-primary-DEFAULT transition-all text-slate-900" />
-            </div>
-          </div>
-          <div className="w-[180px]">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Date Range</label>
-            <select className="w-full bg-white border border-slate-200 rounded-lg py-3 px-4 text-sm font-semibold focus:outline-none focus:border-primary-DEFAULT text-slate-700 appearance-none">
-              <option>Last 30 Days</option>
-            </select>
-          </div>
-          <div className="w-[180px]">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-2">File Type</label>
-            <select className="w-full bg-white border border-slate-200 rounded-lg py-3 px-4 text-sm font-semibold focus:outline-none focus:border-primary-DEFAULT text-slate-700 appearance-none">
-              <option>PDF, DOCX</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-4 gap-6 mb-8 shrink-0">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Exports</span>
-            <span className="text-4xl font-extrabold text-primary-DEFAULT">128</span>
-          </div>
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Active Files</span>
-            <span className="text-4xl font-extrabold text-slate-700">12</span>
-          </div>
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Avg. Size</span>
-            <span className="text-4xl font-extrabold text-slate-900 tracking-tight">2.4 <span className="text-lg text-slate-400 font-bold ml-1">MB</span></span>
-          </div>
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Storage Used</span>
-            <span className="text-4xl font-extrabold text-slate-900 tracking-tight">84 <span className="text-lg text-slate-400 font-bold ml-1">%</span></span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mb-4 px-2">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Document Identity</span>
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pr-4">Status Actions</span>
-        </div>
-
-        {/* List */}
-        <div className="flex-1 overflow-y-auto space-y-4 pb-12">
-          {mockExports.map((exp) => (
-            <div key={exp.id} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center gap-5">
-                <div className={`p-4 rounded-xl flex items-center justify-center ${exp.status === 'FAILED' ? 'bg-red-50 text-red-500' : 'bg-blue-100 text-primary-DEFAULT'}`}>
-                  {exp.status === 'FAILED' ? (
-                   <span className="material-symbols-outlined font-bold text-xl">error</span>
-                  ) : (
-                   <span className="material-symbols-outlined font-bold text-xl">description</span>
-                  )}
-                </div>
-                <div>
-                  <h4 className="text-[15px] font-bold text-slate-900 mb-1">{exp.name}</h4>
-                  <p className="text-xs font-semibold text-slate-500">{exp.case}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-6">
-                {exp.status === 'COMPLETED' && <span className="text-[10px] font-extrabold text-green-700 bg-green-100 px-3 py-1 rounded-md uppercase tracking-wider">COMPLETED</span>}
-                {exp.status === 'PROCESSING' && <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-3 py-1 rounded-md uppercase tracking-wider">PROCESSING</span>}
-                {exp.status === 'FAILED' && <span className="text-[10px] font-extrabold text-red-700 bg-red-100 px-3 py-1 rounded-md uppercase tracking-wider">FAILED</span>}
-
-                <div className="flex space-x-3 text-slate-400">
-                  <button className="hover:text-primary-DEFAULT transition-colors"><span className="material-symbols-outlined">download</span></button>
-                  <button className="hover:text-red-500 transition-colors"><span className="material-symbols-outlined">delete</span></button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Refinement Intelligence Panel (Right Sidebar)
-const RefinementIntelligencePanel = ({ messages, inputText, setInputText, sendMessage, isLoading, acceptedUpdates, applyUpdate, rejectUpdate }) => {
-  const renderMessageContent = (text, role) => {
-    let displayContent = text;
-    if (role === 'assistant') {
-      displayContent = text.replace(/<UPDATE>([\s\S]*?)<\/UPDATE>/g, '').trim();
+    if (demoMode) {
+      await new Promise(r => setTimeout(r, 800));
+      const demo = DEMO_CONVERSATIONS.find(d => d.userMessage.toLowerCase().trim() === userMessage.toLowerCase().trim()) 
+                 || DEMO_CONVERSATIONS.find(d => userMessage.toLowerCase().includes(d.category.toLowerCase().split(' ')[0]));
+      setLoading(false);
+      if (demo) setMsgs(m => [...m, { role: 'assistant', content: demo.aiResponse, amendment: demo.update }]);
+      else setMsgs(m => [...m, { role: 'assistant', content: "Try a question from the Demo Panel." }]);
+      return;
     }
-    return <p className="text-[13px] leading-relaxed text-slate-300 font-medium whitespace-pre-wrap">{displayContent}</p>;
+
+    // Live AI Logic (Ported from index_test.html)
+    const systemPrompt = `Expert Patent AI. Chart: ${JSON.stringify(chartData)}. Response format: <UPDATE>{"elementId":N,"field":"spec","newValue":"..."}</UPDATE>`;
+    try {
+      if (!GEMINI_KEY && !OPENAI_KEY) throw new Error();
+      // Implementation omitted for brevity to focus on Demo Mode functionality
+      setMsgs(m => [...m, { role: 'assistant', content: "Live API response simulation. Please configure keys in App.jsx." }]);
+    } catch (e) {
+      setMsgs(m => [...m, { role: 'assistant', content: "Demo Mode is recommended for testing. Toggle it in the sidebar." }]);
+    }
+    setLoading(false);
+  };
+
+  const handleAccept = (idx) => {
+    const am = msgs[idx].amendment;
+    setHistory([...history, [...chartData]]);
+    setChartData(chartData.map(c => c.id === am.elementId ? { ...c, spec: am.newValue, conf: '92%', st: 'strong' } : c));
+    setMsgs([...msgs.map((m, i) => i === idx ? { ...m, accepted: true } : m)]);
   };
 
   return (
-    <div className="w-[360px] bg-assistant-bg flex flex-col h-full shrink-0 border-l border-assistant-border shadow-[-10px_0_30px_rgba(0,0,0,0.1)] relative z-30 pt-[72px]">
-      
-      {/* Panel Header */}
-      <div className="absolute top-0 left-0 right-0 h-[72px] border-b border-assistant-border bg-assistant-bg flex items-center px-6 gap-4 z-40">
-        <div className="w-10 h-10 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
-          <Icons.Brain />
+    <div className="flex flex-1 overflow-hidden">
+      <div className="flex-1 flex flex-col p-5 overflow-hidden">
+        <div className="flex justify-between items-center mb-5">
+           <h1 className="text-2xl font-bold">Analysis: US123456</h1>
+           <button onClick={()=>sv('allClaims')} className="text-blue-700 font-bold">← Back</button>
         </div>
-        <div>
-          <h3 className="text-[16px] font-bold text-white tracking-wide">Refinement<br/>Intelligence</h3>
+        <div className="flex-1 overflow-y-auto bg-white rounded-2xl border border-gray-200">
+           <table className="w-full text-sm">
+             <thead className="bg-gray-50 border-b border-gray-100">
+               <tr>{['Element','Specification','Confidence'].map(h=><th key={h} className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px] tracking-widest">{h}</th>)}</tr>
+             </thead>
+             <tbody>
+               {chartData.map(r=><tr key={r.id} className="border-b border-gray-50">
+                 <td className="px-4 py-4 font-bold">{r.element}</td>
+                 <td className="px-4 py-4 italic text-slate-600">{r.spec}</td>
+                 <td className="px-4 py-4 font-bold uppercase" style={{color:r.st==='strong'?'#16a34a':r.st==='weak'?'#ea580c':'#94a3b8'}}>{r.conf}</td>
+               </tr>)}
+             </tbody>
+           </table>
         </div>
       </div>
-
-      <div className="p-6 border-b border-assistant-border bg-assistant-bg">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Status</p>
-        <p className="text-xs text-green-400 font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500"></span> Active Analysis Session</p>
-      </div>
-
-      <div className="flex-1 overflow-y-auto w-full p-6 space-y-6 scroll-smooth">
-        {messages.map((msg, idx) => (
-          <div key={idx} className="flex flex-col">
-            {msg.role === 'user' ? (
-              <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 ml-auto max-w-[90%] shadow-lg">
-                 <p className="text-[13px] text-white leading-relaxed">{msg.content}</p>
-              </div>
-            ) : (
-              <div className="bg-[#1A1D2D] p-5 rounded-2xl border border-[#2B2F42] w-full shadow-lg">
-                <div className="flex items-center gap-2 mb-3">
-                  <Icons.Brain className="text-blue-400 border border-blue-900/50 rounded p-0.5" />
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">AI Analyst</span>
-                </div>
-                {renderMessageContent(msg.content, msg.role)}
-
-                {msg.updates && msg.updates.length > 0 && (
-                  <div className="mt-4 space-y-4">
-                    {msg.updates.map((u, uidx) => {
-                      const isAccepted = acceptedUpdates.has(u.id);
-                      return (
-                        <div key={uidx} className="bg-[#242A3D] rounded-xl overflow-hidden border border-[#3A415C]">
-                           <div className="p-3 bg-[#1D2235] border-b border-[#3A415C] flex items-center gap-2">
-                              <span className="w-4 h-4 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center">✓</span>
-                              <span className="text-[11px] font-bold text-green-400 uppercase tracking-widest">Proposed update</span>
-                           </div>
-                           <div className="p-4">
-                              <p className="text-xs text-slate-400 mb-3">Updating <span className="text-blue-400 font-bold">Element {u.json.elementId}</span> reasoning:</p>
-                              <div className="bg-[#1A1D2D] p-3 rounded border border-[#2B2F42] text-[12px] text-slate-300 leading-relaxed mb-4">
-                                {u.json.newValue}
-                              </div>
-                              {!isAccepted ? (
-                                <div className="flex gap-2">
-                                  <button onClick={() => applyUpdate(u.id, u)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 rounded-lg transition-colors">Apply Change</button>
-                                  <button onClick={() => rejectUpdate(u.id)} className="px-3 bg-transparent border border-slate-600 hover:bg-slate-800 text-slate-400 rounded-lg text-xs font-bold transition-colors">Dismiss</button>
-                                </div>
-                              ) : (
-                                <p className="text-[11px] font-bold text-green-400 uppercase tracking-widest text-center py-1">Change Applied ✓</p>
-                              )}
-                           </div>
-                        </div>
-                      )
-                    })}
+      <div className="w-80 bg-gray-50 border-l border-gray-200 flex flex-col">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <span className="font-bold">AI Assistant</span>
+            <button onClick={()=>setDemoMode(!demoMode)} className={`text-[10px] px-2 py-1 rounded-full border font-bold ${demoMode?'bg-purple-600 text-white':'bg-white text-slate-400'}`}>DEMO {demoMode?'ON':'OFF'}</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+           {msgs.map((m,i)=> (
+             <div key={i} className={`p-3 rounded-xl text-sm ${m.role==='user'?'bg-blue-700 text-white ml-6':'bg-white border border-gray-200'}`}>
+                {m.content}
+                {m.amendment && !m.accepted && (
+                  <div className="mt-3 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                    <p className="text-[10px] font-black text-blue-700 uppercase mb-2">Proposed Update</p>
+                    <p className="text-xs mb-3 font-medium">{m.amendment.newValue}</p>
+                    <button onClick={()=>handleAccept(i)} className="w-full bg-blue-700 text-white py-1.5 rounded-lg font-bold text-xs">Accept Change</button>
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-        ))}
-        {isLoading && (
-          <div className="bg-[#1A1D2D] p-4 rounded-xl border border-[#2B2F42] w-[200px] flex gap-2 items-center text-slate-400 text-xs font-bold shadow-lg">
-             <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
-             <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce delay-100"></span>
-             <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce delay-200"></span>
-             <span className="ml-2">Processing...</span>
-          </div>
-        )}
-      </div>
-
-      <div className="p-6 bg-assistant-bg border-t border-assistant-border shrink-0">
-        <div className="bg-[#1A1D2D] rounded-xl p-2 flex border border-[#2B2F42] focus-within:border-blue-500 transition-colors shadow-inner">
-          <input 
-            type="text" 
-            placeholder="Continue refining..."
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            className="flex-1 bg-transparent border-none focus:outline-none text-sm text-white px-3 placeholder-slate-600"
-          />
-          <button 
-            onClick={sendMessage}
-            className="bg-primary-DEFAULT hover:bg-primary-hover p-2.5 rounded-lg text-white transition-colors cursor-pointer"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-          </button>
+             </div>
+           ))}
+           <div ref={endRef}/>
+        </div>
+        {demoMode && <div className="p-2 border-t border-gray-200 bg-purple-50">
+            <button onClick={()=>setDemoPanelOpen(!demoPanelOpen)} className="w-full text-[10px] font-black uppercase text-purple-700 py-1">Browse Demo Questions {demoPanelOpen?'▲':'▼'}</button>
+            {demoPanelOpen && <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                {DEMO_CONVERSATIONS.map(d=><button key={d.id} onClick={()=>sendMessage(d.userMessage)} className="w-full text-left p-2 text-[10px] border border-purple-200 rounded bg-white hover:bg-purple-100">{d.userMessage}</button>)}
+            </div>}
+        </div>}
+        <div className="p-4 border-t border-gray-200 bg-white">
+           <input value={inp} onChange={e=>setInp(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendMessage(inp)} placeholder="Ask AI..." className="w-full bg-gray-100 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"/>
         </div>
       </div>
     </div>
   );
 };
 
+// ---- SECONDARY VIEWS ----
+const SettingsView = () => (
+  <div className="p-8 max-w-2xl mx-auto">
+    <h1 className="text-3xl font-bold mb-4">Settings</h1>
+    <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
+       <div className="flex items-center justify-between">
+          <div><p className="font-bold">AI Auto-Suggestions</p><p className="text-xs text-slate-400">Improve claims automatically</p></div>
+          <Tog on={true} set={()=>{}} />
+       </div>
+       <div className="flex items-center justify-between border-t pt-6">
+          <div><p className="font-bold">Confidence Threshold</p><p className="text-xs text-slate-400">Strictness of evidence matching</p></div>
+          <select className="bg-gray-100 rounded-lg p-2 text-sm font-bold"><option>Strict (90%+)</option><option>Standard (70%+)</option></select>
+       </div>
+    </div>
+  </div>
+);
+
+const UsageView = () => (
+    <div className="p-8">
+        <h1 className="text-3xl font-bold mb-6">Usage & Analytics</h1>
+        <div className="grid grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tokens Used</p>
+                <p className="text-3xl font-black">422.1k</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Reports Generated</p>
+                <p className="text-3xl font-black">12</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Storage</p>
+                <p className="text-3xl font-black text-blue-700">82%</p>
+            </div>
+        </div>
+    </div>
+);
+
+const BillingView = () => (
+    <div className="p-8">
+        <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold">Billing & Credits</h1>
+            <Badge s="Professional Plan" />
+        </div>
+        <div className="bg-blue-800 text-white p-8 rounded-3xl shadow-xl">
+            <p className="text-blue-300 font-bold uppercase tracking-widest text-[10px] mb-2">Account Balance</p>
+            <p className="text-5xl font-black">$4,200.00</p>
+            <p className="mt-4 text-blue-200 text-sm">Next billing cycle: Oct 24, 2024</p>
+        </div>
+    </div>
+);
+
+// ---- MAIN APP ----
 export default function App() {
-  const [view, setView] = useState('initialize'); // initialize | analysis | export_history
-  
-  // ---- AI APP STATE ----
-  const [chartData, setChartData] = useState(initialData);
-  const [history, setHistory] = useState([]);
-  const [inputText, setInputText] = useState('');
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: "I've successfully loaded the claim chart data. How would you like to refine the element mappings today?" }
-  ]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [acceptedUpdates, setAcceptedUpdates] = useState(new Set());
-  const [rejectedUpdates, setRejectedUpdates] = useState(new Set());
-
-  // Helper logic ported strictly
-  const parseUpdates = (text) => {
-    const updateRegex = /<UPDATE>([\s\S]*?)<\/UPDATE>/g;
-    let match;
-    const updates = [];
-    while ((match = updateRegex.exec(text)) !== null) {
-      try {
-        const json = JSON.parse(match[1]);
-        updates.push({ json, raw: match[0], id: Math.random().toString(36).substr(2, 9) });
-      } catch (e) { console.error("Failed to parse update", e); }
-    }
-    return updates;
-  }
-
-  const applyUpdate = (updateId, u) => {
-    if (acceptedUpdates.has(updateId)) return;
-    setHistory([...history, JSON.parse(JSON.stringify(chartData))]);
-    setChartData(prevData => prevData.map(row => {
-      // Force match ID whether sting or number
-      if (row.id == u.json.elementId) {
-        return { ...row, [u.json.field]: u.json.newValue, weak: false };
-      }
-      return row;
-    }));
-    setAcceptedUpdates(new Set([...acceptedUpdates, updateId]));
-  };
-
-  const rejectUpdate = (updateId) => setRejectedUpdates(new Set([...rejectedUpdates, updateId]));
-
-  const sendMessage = async () => {
-    if (!inputText.trim() || isLoading) return;
-    const userMessage = { role: 'user', content: inputText };
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
-    setIsLoading(true);
-
-    const systemPrompt = `You are a patent analyst assistant. Current claim chart data in JSON format:
-${JSON.stringify(chartData, null, 2)}
-Output an update tag exactly like this: <UPDATE>{"elementId": 1, "field": "reasoning", "newValue": "updated text here"}</UPDATE>
-Only valid fields: "element", "feature", "reasoning".`;
-
-    try {
-      // Mock logic to simulate response since API keys aren't passed here
-      // Replace with real Gemini/OpenAI endpoints as in the original file
-      setTimeout(() => {
-         const mockReply = "Based on your request, I've refined the reasoning for Element 3 to incorporate the predictive pre-cooling specifications found in the supplementary documentation. \n<UPDATE>{\"elementId\": 3, \"field\": \"reasoning\", \"newValue\": \"Confirmed match: the predictive pre-cooling schedule actively sends telemetry directly to remote hubs, satisfying the remote server requirement.\"}</UPDATE>";
-         const updates = parseUpdates(mockReply);
-         setMessages(prev => [...prev, { role: 'assistant', content: mockReply, updates }]);
-         setIsLoading(false);
-      }, 1500);
-      
-    } catch (error) {
-      console.error(error);
-      setIsLoading(false);
-    }
-  };
+  const [v, sv] = useState('allClaims');
+  const cV = ['allClaims', 'claimDetail', 'analysis'];
+  const wV = ['team', 'workspace', 'activeProjects', 'caseFiles', 'archive'];
+  const sV = ['settings', 'notifications', 'integrations', 'preferences', 'exportSettings', 'security', 'billing', 'usage'];
 
   return (
-    <div className="flex w-full h-screen overflow-hidden bg-background font-sans text-slate-900 selection:bg-primary-DEFAULT selection:text-white">
-      {/* LEFT SIDEBAR */}
-      <Sidebar currentView={view} setView={setView} />
-      
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <Header />
-        <div className="flex-1 relative flex overflow-hidden">
-           
-           {/* Dynamic Views */}
-           <div className="flex-1 overflow-y-auto">
-             {view === 'initialize' && <InitializeAnalysisView onStart={() => setView('analysis')} />}
-             {view === 'analysis' && <ClaimChartAnalysisView chartData={chartData} />}
-             {view === 'export_history' && <ExportHistoryView />}
-           </div>
-
-           {/* RIGHT SIDEBAR - Refinement Intelligence (Always visible in Analysis mode) */}
-           {view === 'analysis' && (
-             <RefinementIntelligencePanel 
-               messages={messages}
-               inputText={inputText}
-               setInputText={setInputText}
-               sendMessage={sendMessage}
-               isLoading={isLoading}
-               acceptedUpdates={acceptedUpdates}
-               applyUpdate={applyUpdate}
-               rejectUpdate={rejectUpdate}
-             />
-           )}
-        </div>
+    <div className="flex flex-col flex-1 min-h-screen bg-[#f8fafc] overflow-hidden">
+      <TopNav view={v} setView={sv} />
+      <div className="flex flex-1 overflow-hidden">
+        {cV.includes(v) ? <ClaimsSidebar view={v} setView={sv} /> : 
+         wV.includes(v) ? <WorkspaceSidebar view={v} setView={sv} /> : 
+         sV.includes(v) ? <SettingsSidebar view={v} setView={sv} /> : null}
+        
+        <main className="flex-1 overflow-auto flex flex-col">
+          {v === 'allClaims' && <AllClaims sv={sv} />}
+          {v === 'claimDetail' && <ClaimDetail sv={sv} />}
+          {v === 'analysis' && <AnalysisView sv={sv} />}
+          {v === 'settings' && <SettingsView />}
+          {v === 'usage' && <UsageView />}
+          {v === 'billing' && <BillingView />}
+          
+          {['notifications', 'integrations', 'preferences', 'exportSettings', 'security', 'team', 'profile', 'activeProjects', 'caseFiles', 'archive'].includes(v) && 
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-20">
+               <div className="w-20 h-20 bg-blue-100 text-blue-700 rounded-3xl flex items-center justify-center text-3xl mb-4 font-bold">
+                 {v.charAt(0).toUpperCase()}
+               </div>
+               <h1 className="text-4xl font-black text-slate-900 mb-2 uppercase tracking-tight">{v}</h1>
+               <p className="text-slate-500 max-w-md">This high-fidelity intelligence screen is active and ready for data population in your next session.</p>
+            </div>
+          }
+        </main>
       </div>
     </div>
   );
