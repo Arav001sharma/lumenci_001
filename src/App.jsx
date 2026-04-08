@@ -392,55 +392,225 @@ const AnalysisView = ({ sv }) => {
   );
 };
 
-// ---- SECONDARY VIEWS ----
-const SettingsView = () => (
-  <div className="p-8 max-w-2xl mx-auto">
-    <h1 className="text-3xl font-bold mb-4">Settings</h1>
-    <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
-       <div className="flex items-center justify-between">
-          <div><p className="font-bold">AI Auto-Suggestions</p><p className="text-xs text-slate-400">Improve claims automatically</p></div>
-          <Tog on={true} set={()=>{}} />
-       </div>
-       <div className="flex items-center justify-between border-t pt-6">
-          <div><p className="font-bold">Confidence Threshold</p><p className="text-xs text-slate-400">Strictness of evidence matching</p></div>
-          <select className="bg-gray-100 rounded-lg p-2 text-sm font-bold"><option>Strict (90%+)</option><option>Standard (70%+)</option></select>
-       </div>
+// ---- SECONDARY VIEWS (FULL HIGH-FIDELITY PORT) ----
+const SettingsView = () => {
+  const [eD, sED] = useState(true);
+  const [iA, sIA] = useState(true);
+  const [fW, sFW] = useState(true);
+
+  return (
+    <div className="flex-1 overflow-y-auto p-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <p className="text-slate-500 mt-1">Manage your workspace preferences</p>
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-5 flex items-center gap-5">
+        <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-800 font-bold text-xl">AS</div>
+        <div className="flex-1">
+          <p className="text-lg font-bold">Arav Sharma</p>
+          <p className="text-slate-500 text-sm">arav@lumenci.com</p>
+        </div>
+        <button className="bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-800">Save Changes</button>
+      </div>
+      <div className="grid grid-cols-2 gap-5">
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg">🔔</div>
+            <h3 className="font-bold text-lg">Notifications</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <input type="checkbox" checked={eD} onChange={e => sED(e.target.checked)} className="mt-1" />
+              <div>
+                <p className="text-sm font-semibold">Email Digest</p>
+                <p className="text-xs text-slate-400">Daily summary of all claim activities</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <input type="checkbox" checked={iA} onChange={e => sIA(e.target.checked)} className="mt-1" />
+              <div>
+                <p className="text-sm font-semibold">In-app Notifications</p>
+                <p className="text-xs text-slate-400">Real-time alerts while browsing</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-lg">📤</div>
+            <h3 className="font-bold text-lg">Export Settings</h3>
+          </div>
+          <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-3">Default Format</p>
+          <div className="flex gap-2 mb-4">
+            <button className={"flex-1 py-2 rounded-lg text-sm font-semibold border " + (fW ? "bg-blue-700 text-white border-blue-700" : "bg-white border-gray-300")} onClick={() => sFW(true)}>Microsoft Word</button>
+            <button className={"flex-1 py-2 rounded-lg text-sm font-semibold border " + (!fW ? "bg-blue-700 text-white border-blue-700" : "bg-white border-gray-300")} onClick={() => sFW(false)}>Adobe PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PreferencesView = () => {
+  const [style, setStyle] = useState('Balanced');
+  const [thresh, setThresh] = useState(60);
+  return (
+    <div className="flex-1 overflow-y-auto p-6 flex gap-5">
+      <div className="flex-1">
+        <div className="mb-6"><h1 className="text-3xl font-bold">Preferences</h1><p className="text-slate-500 mt-1">Configure your intelligence parameters</p></div>
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-4">
+          <h3 className="font-bold text-xl mb-4">Default Response Style</h3>
+          <div className="grid grid-cols-3 gap-3">
+            {[{ s: 'Technical', d: 'Dense with citations and legal terminology.' }, { s: 'Balanced', d: 'Professional narrative with highlights.' }, { s: 'Simple', d: 'High-level executive summaries.' }].map(({ s, d }) => (
+              <button key={s} onClick={() => setStyle(s)} className={"rounded-xl p-4 text-left border-2 " + (style === s ? "border-blue-700 bg-blue-50" : "border-gray-200 hover:border-gray-300")}>
+                <p className="font-bold text-sm mb-1">{s}</p>
+                <p className="text-xs text-slate-400 leading-relaxed">{d}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-4">
+          <h3 className="font-bold text-xl mb-1">Evidence Thresholds</h3>
+          <input type="range" min="0" max="100" value={thresh} onChange={e => setThresh(Number(e.target.value))} className="w-full accent-blue-700 mb-4" />
+          <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
+            <span>Permissive</span>
+            <span className="text-blue-700">{thresh}% Confidence</span>
+            <span>Strict</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const UsageView = () => {
+  const hmap = [[2, 4, 3, 5, 4, 1, 0], [5, 3, 4, 5, 3, 2, 1], [4, 5, 3, 4, 5, 1, 0]];
+  const hc = ['bg-blue-50', 'bg-blue-100', 'bg-blue-300', 'bg-blue-500', 'bg-blue-700', 'bg-blue-900'];
+  return (
+    <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex items-start justify-between mb-6">
+        <div><h1 className="text-3xl font-bold">Usage & Analytics</h1><p className="text-slate-500 text-sm mt-1">Real-time system utilization.</p></div>
+        <button className="bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold">↓ Export Audit</button>
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[{ label: 'Claims Analyzed', value: '14,282', tag: '+12.5%' }, { label: 'Token Usage', value: '842.1k', tag: 'Normal' }, { label: 'Active Seats', value: '42/50', tag: 'Enterprise' }].map(({ label, value, tag }) => (
+          <div key={label} className="bg-white rounded-2xl border border-gray-200 p-5">
+            <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-2">{label}</p>
+            <p className="text-3xl font-bold">{value}</p>
+            <span className="text-[10px] font-bold text-green-600">{tag}</span>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-bold text-lg mb-4">Team Activity Heatmap</h3>
+        <div className="grid grid-cols-7 gap-1">
+          {hmap.flatMap((r, ri) => r.map((v, ci) => <div key={ri + '-' + ci} className={"h-10 rounded " + (hc[v] || 'bg-gray-50')}></div>))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BillingView = () => (
+  <div className="flex-1 overflow-y-auto p-6">
+    <div className="flex items-start justify-between mb-6">
+      <div><h1 className="text-3xl font-bold">Billing & Plan</h1><p className="text-slate-500 text-sm mt-1">Manage your professional subscription.</p></div>
+      <button className="bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm">Upgrade Plan</button>
+    </div>
+    <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-3 py-1 rounded-full uppercase tracking-wider">Professional Plan</span>
+          <h3 className="text-2xl font-black mt-2">Annual Professional Subscription</h3>
+          <p className="text-slate-400 text-sm">Renews on October 24, 2024</p>
+        </div>
+        <div className="text-right">
+          <p className="text-4xl font-black text-blue-700">$4,800.00</p>
+          <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">Per Year / Paid Annually</p>
+        </div>
+      </div>
+      <div className="border-t pt-6">
+        <h4 className="font-bold mb-4">Payment Methods</h4>
+        <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white border border-gray-200 rounded flex items-center justify-center font-bold text-blue-700 text-xs italic">VISA</div>
+            <div><p className="text-sm font-bold">Visa ending in 4242</p><p className="text-xs text-slate-400">Expires 12/26</p></div>
+          </div>
+          <button className="text-blue-700 font-bold text-sm hover:underline">Edit</button>
+        </div>
+      </div>
     </div>
   </div>
 );
 
-const UsageView = () => (
-    <div className="p-8">
-        <h1 className="text-3xl font-bold mb-6">Usage & Analytics</h1>
-        <div className="grid grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tokens Used</p>
-                <p className="text-3xl font-black">422.1k</p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Reports Generated</p>
-                <p className="text-3xl font-black">12</p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Storage</p>
-                <p className="text-3xl font-black text-blue-700">82%</p>
-            </div>
+const IntsView = () => (
+  <div className="flex-1 overflow-y-auto p-6">
+    <h1 className="text-3xl font-bold mb-1">Integrations</h1>
+    <p className="text-slate-500 mb-6">Connect Lumenci to your legal ecosystem.</p>
+    <div className="grid grid-cols-2 gap-4">
+      {INTS.map(it => (
+        <div key={it.name} className="bg-white rounded-2xl border border-gray-200 p-5 flex items-start justify-between">
+          <div>
+            <h3 className="font-bold text-slate-900">{it.name}</h3>
+            <p className="text-xs text-slate-500 mb-3">{it.desc}</p>
+            <Badge s={it.status} />
+          </div>
+          <button className="text-xs font-bold text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">Connect</button>
         </div>
+      ))}
     </div>
+  </div>
 );
 
-const BillingView = () => (
-    <div className="p-8">
-        <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">Billing & Credits</h1>
-            <Badge s="Professional Plan" />
-        </div>
-        <div className="bg-blue-800 text-white p-8 rounded-3xl shadow-xl">
-            <p className="text-blue-300 font-bold uppercase tracking-widest text-[10px] mb-2">Account Balance</p>
-            <p className="text-5xl font-black">$4,200.00</p>
-            <p className="mt-4 text-blue-200 text-sm">Next billing cycle: Oct 24, 2024</p>
-        </div>
+const TeamView = () => (
+  <div className="flex-1 overflow-y-auto p-6">
+    <div className="flex items-center justify-between mb-6">
+      <div><h1 className="text-3xl font-bold">Team</h1><p className="text-slate-500 text-sm mt-1">Manage expert access and project roles.</p></div>
+      <button className="bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm">+ Invite </button>
     </div>
+    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <table className="w-full">
+        <thead className="bg-gray-50 border-b border-gray-100">
+          <tr>{['Member', 'Role', 'Status', 'Joined'].map(h => <th key={h} className="px-5 py-3.5 text-left text-[11px] text-slate-400 font-bold uppercase tracking-widest">{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {TEAM.map((m, i) => (
+            <tr key={m.n} className={"hover:bg-gray-50 " + (i < TEAM.length - 1 ? "border-b border-gray-50" : "")}>
+              <td className="px-5 py-4 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: m.c }}>{m.i}</div>
+                <div><p className="text-sm font-bold">{m.n}</p><p className="text-xs text-slate-400">{m.e}</p></div>
+              </td>
+              <td className="px-5 py-4 text-sm font-medium">{m.r}</td>
+              <td className="px-5 py-4"><Badge s={m.s} /></td>
+              <td className="px-5 py-4 text-sm text-slate-500">{m.j}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+const ProfileView = () => (
+  <div className="flex-1 overflow-y-auto">
+    <div className="h-32 bg-blue-800"></div>
+    <div className="px-8 pb-8 -mt-8">
+      <div className="flex items-end justify-between mb-8">
+        <div className="flex items-end gap-5">
+          <div className="w-20 h-20 rounded-2xl bg-blue-700 text-white font-bold text-2xl flex items-center justify-center border-4 border-white shadow-lg">AS</div>
+          <div className="mb-2"><h1 className="text-2xl font-bold">Arav Sharma</h1><p className="text-blue-600 font-semibold">Senior Patent Analyst</p></div>
+        </div>
+        <div className="flex gap-4 mb-2">
+           <div className="text-center"><p className="text-2xl font-bold text-blue-700">124</p><p className="text-xs text-slate-400">Claims</p></div>
+           <div className="text-center"><p className="text-2xl font-bold text-blue-700">98%</p><p className="text-xs text-slate-400">Accuracy</p></div>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <h3 className="font-bold mb-4">Recent Activity</h3>
+        <p className="text-sm text-slate-500">Refined claim CLM-003 for Patent Portfolio A · 2 hours ago</p>
+      </div>
+    </div>
+  </div>
 );
 
 // ---- MAIN APP ----
@@ -465,13 +635,17 @@ export default function App() {
           {v === 'settings' && <SettingsView />}
           {v === 'usage' && <UsageView />}
           {v === 'billing' && <BillingView />}
+          {v === 'team' && <TeamView />}
+          {v === 'integrations' && <IntsView />}
+          {v === 'preferences' && <PreferencesView />}
+          {v === 'profile' && <ProfileView />}
           
-          {['notifications', 'integrations', 'preferences', 'exportSettings', 'security', 'team', 'profile', 'activeProjects', 'caseFiles', 'archive'].includes(v) && 
+          {['notifications', 'exportSettings', 'security', 'activeProjects', 'caseFiles', 'archive', 'workspace'].includes(v) && 
             <div className="flex-1 flex flex-col items-center justify-center text-center p-20">
                <div className="w-20 h-20 bg-blue-100 text-blue-700 rounded-3xl flex items-center justify-center text-3xl mb-4 font-bold">
                  {v.charAt(0).toUpperCase()}
                </div>
-               <h1 className="text-4xl font-black text-slate-900 mb-2 uppercase tracking-tight">{v}</h1>
+               <h1 className="text-4xl font-black text-slate-900 mb-2 uppercase tracking-tight">{v.replace(/([A-Z])/g, ' $1').trim()}</h1>
                <p className="text-slate-500 max-w-md">This high-fidelity intelligence screen is active and ready for data population in your next session.</p>
             </div>
           }
